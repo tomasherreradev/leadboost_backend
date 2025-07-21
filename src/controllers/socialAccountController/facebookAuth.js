@@ -11,7 +11,7 @@ const FACEBOOK_APP_SECRET = socialConfig.facebook.appSecret;
 module.exports = {
   // Generar URL de autorización de Facebook
   getAuthUrl: (req, res) => {
-    const redirectUri = `${req.protocol}://${req.get('host')}/api/social/facebook/callback`;
+    const redirectUri = `https://leadboostappp.netlify.app/api/social/facebook/callback`;
 
     const scopes = [
       'email',
