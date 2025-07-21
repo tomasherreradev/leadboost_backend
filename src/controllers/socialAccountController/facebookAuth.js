@@ -53,7 +53,7 @@ module.exports = {
         return res.status(401).json({ error: 'Usuario no autenticado' });
       }
   
-      const redirectUri = `${req.protocol}://${req.get('host')}/api/social/facebook/callback`;
+      const redirectUri = `https://leadboostappp.netlify.app/api/social/facebook/callback`;
       console.log('Redirect URI:', redirectUri);
   
       const tokenResponse = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
