@@ -27,6 +27,7 @@ module.exports = {
     
     const state = encodeURIComponent(JSON.stringify({ userId: req.user.id }));
     const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes.join(',')}&state=${state}`;
+    console.log('URL de autorización de Facebook:', authUrl);
 
     res.json({ authUrl });
   },
