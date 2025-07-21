@@ -1,6 +1,8 @@
-const { SocialAccount, User } = require('../../../models');
+const { SocialAccount } = require('../../../models');
 const axios = require('axios');
 const socialConfig = require('../../../config/socialConfig');
+const dotenv = require('dotenv');
+dotenv.config();
 
 const INSTAGRAM_APP_ID = socialConfig.instagram.appId;
 const INSTAGRAM_APP_SECRET = socialConfig.instagram.appSecret;
@@ -90,12 +92,12 @@ module.exports = {
       }
 
       // Redirigir al frontend con parámetros de éxito
-      const frontendUrl = 'http://localhost:5173/instagram-callback?status=success';
+      const frontendUrl = `${process.env.FRONTEND_URL}/instagram-callback?status=success`;
       res.redirect(frontendUrl);
 
     } catch (error) {
       console.error('Error en Instagram callback:', error.response?.data || error.message);
-      const frontendUrl = 'http://localhost:5173/instagram-callback?status=error&message=' + encodeURIComponent('Error al conectar cuenta de Instagram');
+      const frontendUrl = `${process.env.FRONTEND_URL}/instagram-callback?status=error&message=` + encodeURIComponent('Error al conectar cuenta de Instagram');
       res.redirect(frontendUrl);
     }
   },

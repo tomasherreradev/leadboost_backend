@@ -1,6 +1,8 @@
 const { SocialAccount } = require('../../../models');
 const axios = require('axios');
 const socialConfig = require('../../../config/socialConfig');
+const dotenv = require('dotenv');
+dotenv.config();
 
 const FACEBOOK_APP_ID = socialConfig.facebook.appId;
 const BUSINESS_ID = '1722016665372395';
@@ -190,11 +192,11 @@ module.exports = {
         console.log('No se encontró ninguna cuenta de Instagram Business vinculada a las páginas del negocio');
       }
   
-      res.redirect('http://localhost:5173/facebook-callback?status=success');
+      res.redirect(`${process.env.FRONTEND_URL}/facebook-callback?status=success`);
     } catch (error) {
       console.error('Error en Facebook callback:', error.response?.data || error.message);
       res.redirect(
-        'http://localhost:5173/facebook-callback?status=error&message=' +
+        `${process.env.FRONTEND_URL}/facebook-callback?status=error&message=` +
           encodeURIComponent('Error al conectar cuenta de Facebook o Instagram')
       );
     }

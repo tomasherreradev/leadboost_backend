@@ -1,6 +1,8 @@
 const { SocialAccount } = require('../../../models');
 const axios = require('axios');
 const socialConfig = require('../../../config/socialConfig');
+const dotenv = require('dotenv');
+dotenv.config();
 
 const WHATSAPP_PHONE_NUMBER_ID = socialConfig.whatsapp?.phoneNumberId;
 if(!WHATSAPP_PHONE_NUMBER_ID) {
@@ -19,7 +21,7 @@ module.exports = {
     const state = encodeURIComponent(JSON.stringify({ userId: req.user.id }));
     
     // Para WhatsApp, podríamos redirigir a una página de configuración
-    const authUrl = `http://localhost:5173/whatsapp-setup?state=${state}`;
+    const authUrl = `${process.env.FRONTEND_URL}/whatsapp-setup?state=${state}`;
     
     res.json({ authUrl });
   },
@@ -90,11 +92,11 @@ module.exports = {
         console.log('Cuenta WhatsApp creada');
       }
   
-      res.redirect('http://localhost:5173/whatsapp-callback?status=success');
+      res.redirect(`${process.env.FRONTEND_URL}/whatsapp-callback?status=success`);
     } catch (error) {
       console.error('Error en WhatsApp callback:', error.response?.data || error.message);
       res.redirect(
-        'http://localhost:5173/whatsapp-callback?status=error&message=' +
+        `${process.env.FRONTEND_URL}/whatsapp-callback?status=error&message=` +
           encodeURIComponent('Error al conectar cuenta de WhatsApp')
       );
     }

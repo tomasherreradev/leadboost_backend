@@ -1,6 +1,8 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const dotenv = require('dotenv');
+dotenv.config();
 
 console.log('🚀 Configurando sistema de autenticación...\n');
 
@@ -18,7 +20,7 @@ DB_NAME=leadbost
 DB_PORT=3306
 JWT_SECRET=tu_jwt_secret_super_seguro_aqui_minimo_32_caracteres
 RESEND_API_KEY=tu_resend_api_key_aqui
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=${process.env.FRONTEND_URL}
   `);
   process.exit(1);
 }
@@ -43,5 +45,5 @@ console.log('\n🎉 Sistema de autenticación configurado correctamente!');
 console.log('\n📋 Próximos pasos:');
 console.log('1. Inicia el servidor backend: npm run dev');
 console.log('2. Inicia el frontend: cd ../frontend && npm run dev');
-console.log('3. Accede a http://localhost:5173 para probar el sistema');
+console.log(`3. Accede a ${process.env.FRONTEND_URL} para probar el sistema`);
 console.log('\n🔐 Recuerda configurar tu API Key de Resend para el envío de emails');

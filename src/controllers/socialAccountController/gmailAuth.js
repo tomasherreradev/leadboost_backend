@@ -1,8 +1,7 @@
 const { google } = require('googleapis');
 const { SocialAccount } = require('../../../models');
-
-
-require('dotenv').config();
+const dotenv = require('dotenv');
+dotenv.config();
 
 const CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
@@ -63,7 +62,7 @@ module.exports = {
         expires_at: tokens.expiry_date,
       });
 
-      res.redirect('http://localhost:5173/settings/networks'); // Cambia por tu ruta en frontend
+      res.redirect(`${process.env.FRONTEND_URL}/settings/networks`); // Cambia por tu ruta en frontend
     } catch (error) {
       console.error('Error en el callback de Gmail:', error);
       res.status(500).json({ error: 'Error al conectar cuenta de Gmail' });
