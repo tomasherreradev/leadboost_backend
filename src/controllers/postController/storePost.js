@@ -83,9 +83,9 @@ module.exports = async (req, res) => {
     let fileName = null;
     if (image) {
       fileName = `${uuidv4()}-${image.name}`;
-      const filePath = path.join(__dirname, '../../../Uploads', fileName);
+      const filePath = path.join(__dirname, '../../../uploads', fileName);
       await image.mv(filePath);
-      imageUrl = `${process.env.BACKEND_URL}/Uploads/${fileName}`;
+      imageUrl = `${process.env.BACKEND_URL}/uploads/${fileName}`;
     }
 
     const post = await Post.create({
@@ -148,7 +148,7 @@ module.exports = async (req, res) => {
             console.log('Nombre del archivo:', fileName);
             console.log('Tipo MIME:', image.mimetype);
             
-            const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../Uploads', fileName));
+            const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileName));
             console.log('Tamaño del buffer:', imageBuffer.length, 'bytes');
             
             const FormData = require('form-data');
@@ -240,7 +240,7 @@ module.exports = async (req, res) => {
             throw new Error('No se pudo verificar los permisos del token de acceso');
           }
         
-          const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../Uploads', fileName));
+          const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileName));
           console.log('Tamaño del buffer:', imageBuffer.length, 'bytes');
           
           console.log('Subiendo imagen a servicio público para Facebook Story...');
@@ -273,7 +273,7 @@ module.exports = async (req, res) => {
           console.log('Subiendo imagen directamente a Instagram (vía servicio público)...');
           console.log('Nombre del archivo:', fileName);
           
-          const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../Uploads', fileName));
+          const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileName));
           console.log('Tamaño del buffer:', imageBuffer.length, 'bytes');
           
           console.log('Subiendo imagen a servicio público...');
@@ -311,7 +311,7 @@ module.exports = async (req, res) => {
           console.log('Subiendo historia directamente a Instagram (vía servicio público)...');
           console.log('Nombre del archivo:', fileName);
           
-          const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../Uploads', fileName));
+          const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileName));
           console.log('Tamaño del buffer:', imageBuffer.length, 'bytes');
           
           console.log('Subiendo imagen a servicio público...');
