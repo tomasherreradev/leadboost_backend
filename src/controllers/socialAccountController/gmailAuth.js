@@ -5,7 +5,7 @@ dotenv.config();
 
 const CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-const REDIRECT_URI = process.env.GOOGLE_OAUTH_REDIRECT_URI || 'http://localhost:5000/api/social/gmail/callback';
+const REDIRECT_URI = process.env.BACKEND_URL + '/api/social/gmail/callback';
 
 const oauth2Client = new google.auth.OAuth2(
   CLIENT_ID,
