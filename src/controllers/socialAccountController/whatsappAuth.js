@@ -92,11 +92,11 @@ module.exports = {
         console.log('Cuenta WhatsApp creada');
       }
   
-      res.redirect(`${process.env.FRONTEND_URL}/whatsapp-callback?status=success`);
+      res.redirect(`${process.env.BACKEND_URL}/whatsapp-callback?status=success`);
     } catch (error) {
       console.error('Error en WhatsApp callback:', error.response?.data || error.message);
       res.redirect(
-        `${process.env.FRONTEND_URL}/whatsapp-callback?status=error&message=` +
+        `${process.env.BACKEND_URL}/whatsapp-callback?status=error&message=` +
           encodeURIComponent('Error al conectar cuenta de WhatsApp')
       );
     }
