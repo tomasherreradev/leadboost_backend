@@ -1,4 +1,4 @@
-const { Message } = require('../models');
+const { Message } = require('../../models');
 
 // GET /api/messages?provider=facebook|instagram
 exports.getMessagesByUser = async (req, res) => {
