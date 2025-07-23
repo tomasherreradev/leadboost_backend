@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const messageController = require('../controllers/messageController');
-const { authenticate } = require('../middleware/authMiddleware');
+const messageController = require('../controllers/messageController/messageController');
+const authMiddleware = require('../middleware/auth');
 
 // GET /api/messages?provider=facebook|instagram
-router.get('/', authenticate, messageController.getMessagesByUser);
+router.get('/', authMiddleware, messageController.getMessagesByUser);
 
 module.exports = router;
