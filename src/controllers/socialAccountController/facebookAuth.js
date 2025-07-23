@@ -110,24 +110,27 @@ module.exports = {
         }))
       };
   
+      // Usar el ID de la primera página en lugar del ID del usuario
+      const pageId = pages.length > 0 ? pages[0].id : facebook_id;
+      
       if (socialAccount) {
         await socialAccount.update({
           access_token,
           expires_at: facebookExpiresAt,
-          provider_user_id: facebook_id,
+          provider_user_id: pageId,
           extra_data: JSON.stringify(extraData)
         });
-        console.log('Cuenta Facebook actualizada');
+        console.log('Cuenta Facebook actualizada con page_id:', pageId);
       } else {
         socialAccount = await SocialAccount.create({
           user_id: userId,
           provider: 'facebook',
-          provider_user_id: facebook_id,
+          provider_user_id: pageId,
           access_token,
           expires_at: facebookExpiresAt,
           extra_data: JSON.stringify(extraData)
         });
-        console.log('Cuenta Facebook creada');
+        console.log('Cuenta Facebook creada con page_id:', pageId);
       }
   
       let igAccountSaved = false;
