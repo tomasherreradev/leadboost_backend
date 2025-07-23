@@ -140,13 +140,33 @@ const processMessagingEvents = async (messaging) => {
 
       console.log('[processMessagingEvents] socialAccount encontrado:', socialAccount.toJSON());
 
+      const senderId = event.sender.id;
+      let senderName = '';
+
+      try {
+        const userProfileRes = await axios.get(`https://graph.facebook.com/v18.0/${senderId}`, {
+          params: {
+            access_token: socialAccount.access_token,
+            fields: 'first_name,last_name'
+          }
+        });
+
+        const profile = userProfileRes.data;
+        senderName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+        console.log('[processMessagingEvents] Nombre del remitente obtenido:', senderName);
+      } catch (err) {
+        console.warn('[processMessagingEvents] No se pudo obtener el nombre del remitente:', err.message);
+      }
+
+
+
       try {
         const messageData = {
           user_id: socialAccount.user_id,
           provider: socialAccount.provider,
           provider_message_id: event.message.mid,
           sender_id: event.sender.id,
-          sender_name: '',
+          sender_name: senderName || '',
           recipient_id: event.recipient.id,
           recipient_name: '',
           content: event.message.text || '',

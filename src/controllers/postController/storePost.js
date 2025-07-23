@@ -190,16 +190,17 @@ module.exports = async (req, res) => {
             throw new Error('Facebook requiere una imagen para publicar historias');
           }
         
-          console.log('Subiendo historia a Facebook...');
+          console.log('Subiendo historia a Facebook como post normal...');
           console.log('Nombre del archivo:', fileName);
         
+          // Facebook Stories API está deprecada, publicamos como post normal
           let pageInfo = null;
           if (account.extra_data) {
             try {
               const extraData = JSON.parse(account.extra_data);
               if (extraData.pages && extraData.pages.length > 0) {
                 pageInfo = extraData.pages[0];
-                console.log(`Usando página guardada para historia: ${pageInfo.name} (ID: ${pageInfo.id})`);
+                console.log(`Usando página guardada: ${pageInfo.name} (ID: ${pageInfo.id})`);
               }
             } catch (error) {
               console.error('Error parsing extra_data:', error);
@@ -222,48 +223,38 @@ module.exports = async (req, res) => {
               throw new Error('No se encontraron páginas de Facebook asociadas a esta cuenta');
             }
           }
-        
-          // Verify page access token permissions
-          try {
-            const tokenInfo = await axios.get('https://graph.facebook.com/v18.0/debug_token', {
-              params: {
-                input_token: pageInfo.access_token,
-                access_token: `${FACEBOOK_APP_ID}|${FACEBOOK_APP_SECRET}`
-              }
-            });
-            console.log('Token permissions:', tokenInfo.data.data.scopes);
-            if (!tokenInfo.data.data.scopes.includes('pages_manage_posts')) {
-              throw new Error('El token de acceso no tiene el permiso pages_manage_posts necesario para publicar historias');
-            }
-          } catch (error) {
-            console.error('Error verifying token permissions:', error.response?.data || error.message);
-            throw new Error('No se pudo verificar los permisos del token de acceso');
-          }
-        
+          
           const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileName));
           console.log('Tamaño del buffer:', imageBuffer.length, 'bytes');
           
-          console.log('Subiendo imagen a servicio público para Facebook Story...');
-          const publicImageUrl = await uploadImageToPublicService(imageBuffer, fileName);
-          console.log('URL pública obtenida:', publicImageUrl);
-        
-          console.log('Enviando solicitud a Facebook Stories API...');
+          console.log('Subiendo imagen a Facebook como post...');
           console.log('Request payload:', {
-            url: publicImageUrl,
+            message: content || '',
             access_token: pageInfo.access_token,
           });
-          console.log('Request endpoint:', `https://graph.facebook.com/v18.0/${pageInfo.id}/stories`);
+          console.log('Request endpoint:', `https://graph.facebook.com/v18.0/${pageInfo.id}/photos`);
         
-          const storyResponse = await axios.post(
-            `https://graph.facebook.com/v18.0/${pageInfo.id}/stories`,
+          const FormData = require('form-data');
+          const form = new FormData();
+          form.append('message', content || '');
+          form.append('access_token', pageInfo.access_token);
+          form.append('source', imageBuffer, {
+            filename: fileName,
+            contentType: image.mimetype || 'image/jpeg'
+          });
+          
+          const response = await axios.post(
+            `https://graph.facebook.com/v18.0/${pageInfo.id}/photos`,
+            form,
             {
-              url: publicImageUrl,
-              access_token: pageInfo.access_token,
+              headers: {
+                ...form.getHeaders(),
+              },
             }
           );
         
-          console.log('Respuesta de Facebook (historia):', storyResponse.data);
-          remotePostId = storyResponse.data.id;
+          console.log('Respuesta de Facebook (post con imagen):', response.data);
+          remotePostId = response.data.id;
           status = 'published';
         } else if (account.provider === 'instagram' && postType === 'post') {
           if (!imageUrl) {
@@ -280,13 +271,25 @@ module.exports = async (req, res) => {
           const publicImageUrl = await uploadImageToPublicService(imageBuffer, fileName);
           console.log('URL pública obtenida:', publicImageUrl);
           
+          // Preparar el payload para Instagram
+          const mediaPayload = {
+            image_url: publicImageUrl,
+            access_token: account.access_token,
+          };
+          
+          // Solo agregar caption si hay contenido real
+          if (content && content.trim().length > 0) {
+            mediaPayload.caption = content.trim();
+            console.log('Caption para Instagram:', content.trim());
+          } else {
+            console.log('No se enviará caption (contenido vacío)');
+          }
+          
+          console.log('Payload completo para Instagram:', mediaPayload);
+          
           const mediaResponse = await axios.post(
             `https://graph.facebook.com/v18.0/${account.provider_user_id}/media`,
-            {
-              image_url: publicImageUrl,
-              caption: content,
-              access_token: account.access_token,
-            }
+            mediaPayload
           );
           
           console.log('Respuesta de Instagram:', mediaResponse.data);
@@ -359,14 +362,23 @@ module.exports = async (req, res) => {
           }
         
           // Configurar mensaje
+          let htmlContent = `<p>${content}</p>`;
+          
+          if (imageUrl) {
+            // Para emails, necesitamos una URL pública de la imagen
+            console.log('Procesando imagen para email...');
+            const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileName));
+            const publicImageUrl = await uploadImageToPublicService(imageBuffer, fileName);
+            console.log('URL pública para email:', publicImageUrl);
+            htmlContent += `<img src="${publicImageUrl}" alt="Imagen de campaña" style="max-width: 100%; height: auto;" />`;
+          }
+          
           const msg = {
             to: parsedRecipients,
             from: process.env.SENDGRID_FROM_EMAIL,
             subject: emailSubject,
             text: content,
-            html: imageUrl 
-              ? `<p>${content}</p><img src="${imageUrl}" alt="Imagen de campaña" />`
-              : `<p>${content}</p>`,
+            html: htmlContent,
           };
         
           console.log('Detalles del mensaje:', {
