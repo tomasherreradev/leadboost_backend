@@ -15,6 +15,11 @@ const mailListRoutes = require('./src/routes/mailListRoutes');
 const path = require('path');
 dotenv.config();
 
+// Webhook routes
+const webhookFacebookInstagram = require('./src/routes/webhookFacebookInstagram');
+const webhookWhatsapp = require('./src/routes/webhookWhatsapp');
+const webhookGmail = require('./src/routes/webhookGmail');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -38,6 +43,10 @@ app.use('/api/social/instagram', instagramRoutes);
 app.use('/api/social/gmail', gmailRoutes);
 app.use('/api/social/whatsapp', whatsappRoutes);
 
+// Webhook endpoints
+app.use('/webhook/facebook-instagram', webhookFacebookInstagram);
+app.use('/webhook/whatsapp', webhookWhatsapp);
+app.use('/webhook/gmail', webhookGmail);
 
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en http://localhost:${PORT}`);
