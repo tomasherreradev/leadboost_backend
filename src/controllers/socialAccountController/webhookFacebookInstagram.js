@@ -22,9 +22,6 @@ exports.handleWebhook = async (req, res) => {
       const messaging = entry.messaging || [];
       for (const event of messaging) {
         if (event.message && event.sender && event.recipient) {
-          // Buscar el usuario por provider_user_id y provider
-          // Para mensajes recibidos, normalmente event.recipient.id es tu página (provider_user_id)
-          // y event.sender.id es el usuario externo (no de tu sistema)
           let provider = 'facebook';
           if (event.recipient.id.startsWith('1784')) provider = 'instagram'; // Instagram IDs suelen comenzar con 1784
           const socialAccount = await SocialAccount.findOne({

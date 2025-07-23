@@ -19,6 +19,7 @@ dotenv.config();
 const webhookFacebookInstagram = require('./src/routes/webhookFacebookInstagram');
 const webhookWhatsapp = require('./src/routes/webhookWhatsapp');
 const webhookGmail = require('./src/routes/webhookGmail');
+const messageRoutes = require('./src/routes/messageRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -36,6 +37,7 @@ app.use('/api/posts', postRoutes);
 app.use('/api/post-targets', postTargetRoutes);
 app.use('/api/post-responses', postResponseRoutes);
 app.use('/api/mail-lists', mailListRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Rutas de redes sociales
 app.use('/api/social/facebook', facebookRoutes);
