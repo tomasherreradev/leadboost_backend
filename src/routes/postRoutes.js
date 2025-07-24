@@ -10,7 +10,21 @@ const authMiddleware = require('../middleware/auth');
 
 const fileUpload = require('express-fileupload');
 
-router.use(fileUpload());
+// Permitir múltiples archivos
+router.use(fileUpload({
+  createParentPath: true,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  useTempFiles: true,
+  tempFileDir: '/tmp/',
+  abortOnLimit: true,
+  safeFileNames: true,
+  preserveExtension: true,
+  parseNested: true,
+  debug: false,
+  // Permitir múltiples archivos
+  limits: { files: 10 },
+  // No es necesario especificar 'multiple: true' en express-fileupload, solo manejarlo en el controlador
+}));
 
 router.get('/', getAll);
 router.get('/:id', showPost);

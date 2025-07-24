@@ -12,6 +12,7 @@ const instagramRoutes = require('./src/routes/instagramRoutes');
 const gmailRoutes = require('./src/routes/gmailRoutes');
 const whatsappRoutes = require('./src/routes/whatsappRoutes');
 const mailListRoutes = require('./src/routes/mailListRoutes');
+const contactListRoutes = require('./src/routes/contactListRoutes');
 const path = require('path');
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use('/api/posts', postRoutes);
 app.use('/api/post-targets', postTargetRoutes);
 app.use('/api/post-responses', postResponseRoutes);
 app.use('/api/mail-lists', mailListRoutes);
+app.use('/api/contact-lists', contactListRoutes);
 app.use('/api/messages', messageRoutes);
 
 // Rutas de redes sociales

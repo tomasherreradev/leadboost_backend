@@ -79,20 +79,27 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Debe proporcionar un número de teléfono para WhatsApp' });
     }
 
-    let imageUrl = null;
-    let fileName = null;
-    if (image) {
-      fileName = `${uuidv4()}-${image.name}`;
-      const filePath = path.join(__dirname, '../../../uploads', fileName);
-      await image.mv(filePath);
-      imageUrl = `${process.env.BACKEND_URL}/uploads/${fileName}`;
+    // Cambios para soportar múltiples imágenes
+    const images = req.files?.images;
+    const imagesArray = images ? (Array.isArray(images) ? images : [images]) : [];
+    let imageUrls = [];
+    let fileNames = [];
+    if (imagesArray.length > 0) {
+      for (const img of imagesArray) {
+        const fname = `${uuidv4()}-${img.name}`;
+        const fpath = path.join(__dirname, '../../../uploads', fname);
+        await img.mv(fpath);
+        imageUrls.push(`${process.env.BACKEND_URL}/uploads/${fname}`);
+        fileNames.push(fname);
+      }
     }
 
+    // Al crear el post, guarda solo la primera imagen (para compatibilidad)
     const post = await Post.create({
       user_id: user.id,
       title: title || postType.charAt(0).toUpperCase() + postType.slice(1),
       content,
-      image_url: imageUrl,
+      image_url: imageUrls[0] || null,
     });
 
     const accounts = await SocialAccount.findAll({
@@ -143,55 +150,89 @@ module.exports = async (req, res) => {
             }
           }
 
-          if (imageUrl) {
-            console.log('Subiendo imagen a Facebook...');
-            console.log('Nombre del archivo:', fileName);
-            console.log('Tipo MIME:', image.mimetype);
-            
-            const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileName));
-            console.log('Tamaño del buffer:', imageBuffer.length, 'bytes');
-            
-            const FormData = require('form-data');
-            const form = new FormData();
-            form.append('message', content);
-            form.append('access_token', pageInfo.access_token);
-            form.append('source', imageBuffer, {
-              filename: fileName,
-              contentType: image.mimetype || 'image/jpeg'
-            });
-            
-            console.log('FormData creado, enviando a Facebook...');
-            
-            const mediaResponse = await axios.post(
-              `https://graph.facebook.com/v18.0/${pageInfo.id}/photos`,
-              form,
-              {
-                headers: {
-                  ...form.getHeaders(),
-                },
-              }
-            );
-            
-            console.log('Respuesta de Facebook:', mediaResponse.data);
-            remotePostId = mediaResponse.data.id;
-          } else {
-            const response = await axios.post(
+          if (imageUrls.length > 1) {
+            // Publicar álbum en Facebook
+            // 1. Subir cada imagen como unpublished
+            const photoIds = [];
+            for (let i = 0; i < imageUrls.length; i++) {
+              const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileNames[i]));
+              const FormData = require('form-data');
+              const form = new FormData();
+              form.append('published', 'false');
+              form.append('access_token', pageInfo.access_token);
+              form.append('source', imageBuffer, {
+                filename: fileNames[i],
+                contentType: imagesArray[i].mimetype || 'image/jpeg',
+              });
+              const mediaResponse = await axios.post(
+                `https://graph.facebook.com/v18.0/${pageInfo.id}/photos`,
+                form,
+                { headers: { ...form.getHeaders() } }
+              );
+              photoIds.push(mediaResponse.data.id);
+            }
+            // 2. Crear el post con los IDs de las fotos
+            const albumResponse = await axios.post(
               `https://graph.facebook.com/v18.0/${pageInfo.id}/feed`,
               {
                 message: content,
                 access_token: pageInfo.access_token,
+                attached_media: photoIds.map(id => ({ media_fbid: id })),
               }
             );
-            remotePostId = response.data.id;
+            remotePostId = albumResponse.data.id;
+            status = 'published';
+          } else if (imageUrls.length === 1) {
+            if (imageUrls[0]) {
+              console.log('Subiendo imagen a Facebook...');
+              console.log('Nombre del archivo:', fileNames[0]);
+              console.log('Tipo MIME:', imagesArray[0].mimetype);
+              
+              const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileNames[0]));
+              console.log('Tamaño del buffer:', imageBuffer.length, 'bytes');
+              
+              const FormData = require('form-data');
+              const form = new FormData();
+              form.append('message', content);
+              form.append('access_token', pageInfo.access_token);
+              form.append('source', imageBuffer, {
+                filename: fileNames[0],
+                contentType: imagesArray[0].mimetype || 'image/jpeg'
+              });
+              
+              console.log('FormData creado, enviando a Facebook...');
+              
+              const mediaResponse = await axios.post(
+                `https://graph.facebook.com/v18.0/${pageInfo.id}/photos`,
+                form,
+                {
+                  headers: {
+                    ...form.getHeaders(),
+                  },
+                }
+              );
+              
+              console.log('Respuesta de Facebook:', mediaResponse.data);
+              remotePostId = mediaResponse.data.id;
+            } else {
+              const response = await axios.post(
+                `https://graph.facebook.com/v18.0/${pageInfo.id}/feed`,
+                {
+                  message: content,
+                  access_token: pageInfo.access_token,
+                }
+              );
+              remotePostId = response.data.id;
+            }
+            status = 'published';
           }
-          status = 'published';
         } else if (account.provider === 'facebook' && postType === 'story') {
-          if (!imageUrl) {
+          if (!imageUrls[0]) {
             throw new Error('Facebook requiere una imagen para publicar historias');
           }
         
           console.log('Subiendo historia a Facebook como post normal...');
-          console.log('Nombre del archivo:', fileName);
+          console.log('Nombre del archivo:', fileNames[0]);
         
           // Facebook Stories API está deprecada, publicamos como post normal
           let pageInfo = null;
@@ -224,7 +265,7 @@ module.exports = async (req, res) => {
             }
           }
           
-          const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileName));
+          const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileNames[0]));
           console.log('Tamaño del buffer:', imageBuffer.length, 'bytes');
           
           console.log('Subiendo imagen a Facebook como post...');
@@ -239,8 +280,8 @@ module.exports = async (req, res) => {
           form.append('message', content || '');
           form.append('access_token', pageInfo.access_token);
           form.append('source', imageBuffer, {
-            filename: fileName,
-            contentType: image.mimetype || 'image/jpeg'
+            filename: fileNames[0],
+            contentType: imagesArray[0].mimetype || 'image/jpeg'
           });
           
           const response = await axios.post(
@@ -256,27 +297,64 @@ module.exports = async (req, res) => {
           console.log('Respuesta de Facebook (post con imagen):', response.data);
           remotePostId = response.data.id;
           status = 'published';
+        } else if (account.provider === 'instagram' && postType === 'post' && imageUrls.length > 1) {
+          // Publicar carrusel en Instagram
+          // 1. Subir cada imagen como media container
+          const publicImageUrls = [];
+          for (let i = 0; i < imageUrls.length; i++) {
+            const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileNames[i]));
+            const publicUrl = await uploadImageToPublicService(imageBuffer, fileNames[i]);
+            publicImageUrls.push(publicUrl);
+          }
+          const children = [];
+          for (let i = 0; i < publicImageUrls.length; i++) {
+            const mediaResponse = await axios.post(
+              `https://graph.facebook.com/v18.0/${account.provider_user_id}/media`,
+              {
+                image_url: publicImageUrls[i],
+                is_carousel_item: true,
+                access_token: account.access_token,
+              }
+            );
+            children.push(mediaResponse.data.id);
+          }
+          // 2. Crear el carrusel
+          const carouselResponse = await axios.post(
+            `https://graph.facebook.com/v18.0/${account.provider_user_id}/media`,
+            {
+              media_type: 'CAROUSEL',
+              children,
+              caption: content,
+              access_token: account.access_token,
+            }
+          );
+          // 3. Publicar el carrusel
+          const publishResponse = await axios.post(
+            `https://graph.facebook.com/v18.0/${account.provider_user_id}/media_publish`,
+            {
+              creation_id: carouselResponse.data.id,
+              access_token: account.access_token,
+            }
+          );
+          remotePostId = publishResponse.data.id;
+          status = 'published';
         } else if (account.provider === 'instagram' && postType === 'post') {
-          if (!imageUrl) {
+          // Lógica para una sola imagen (como ya tienes)
+          if (!imageUrls[0]) {
             throw new Error('Instagram requiere una imagen para publicar en el feed');
           }
-          
           console.log('Subiendo imagen directamente a Instagram (vía servicio público)...');
-          console.log('Nombre del archivo:', fileName);
-          
-          const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileName));
+          console.log('Nombre del archivo:', fileNames[0]);
+          const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileNames[0]));
           console.log('Tamaño del buffer:', imageBuffer.length, 'bytes');
-          
           console.log('Subiendo imagen a servicio público...');
-          const publicImageUrl = await uploadImageToPublicService(imageBuffer, fileName);
+          const publicImageUrl = await uploadImageToPublicService(imageBuffer, fileNames[0]);
           console.log('URL pública obtenida:', publicImageUrl);
-          
           // Preparar el payload para Instagram
           const mediaPayload = {
             image_url: publicImageUrl,
             access_token: account.access_token,
           };
-          
           // Solo agregar caption si hay contenido real
           if (content && content.trim().length > 0) {
             mediaPayload.caption = content.trim();
@@ -284,17 +362,13 @@ module.exports = async (req, res) => {
           } else {
             console.log('No se enviará caption (contenido vacío)');
           }
-          
           console.log('Payload completo para Instagram:', mediaPayload);
-          
           const mediaResponse = await axios.post(
             `https://graph.facebook.com/v18.0/${account.provider_user_id}/media`,
             mediaPayload
           );
-          
           console.log('Respuesta de Instagram:', mediaResponse.data);
           const mediaId = mediaResponse.data.id;
-          
           const publishResponse = await axios.post(
             `https://graph.facebook.com/v18.0/${account.provider_user_id}/media_publish`,
             {
@@ -302,23 +376,22 @@ module.exports = async (req, res) => {
               access_token: account.access_token,
             }
           );
-          
           console.log('Respuesta de publicación:', publishResponse.data);
           remotePostId = publishResponse.data.id;
           status = 'published';
         } else if (account.provider === 'instagram' && postType === 'story') {
-          if (!imageUrl) {
+          if (!imageUrls[0]) {
             throw new Error('Instagram requiere una imagen para publicar historias');
           }
           
           console.log('Subiendo historia directamente a Instagram (vía servicio público)...');
-          console.log('Nombre del archivo:', fileName);
+          console.log('Nombre del archivo:', fileNames[0]);
           
-          const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileName));
+          const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileNames[0]));
           console.log('Tamaño del buffer:', imageBuffer.length, 'bytes');
           
           console.log('Subiendo imagen a servicio público...');
-          const publicImageUrl = await uploadImageToPublicService(imageBuffer, fileName);
+          const publicImageUrl = await uploadImageToPublicService(imageBuffer, fileNames[0]);
           console.log('URL pública obtenida:', publicImageUrl);
           
           const mediaResponse = await axios.post(
@@ -364,11 +437,11 @@ module.exports = async (req, res) => {
           // Configurar mensaje
           let htmlContent = `<p>${content}</p>`;
           
-          if (imageUrl) {
+          if (imageUrls.length > 0) {
             // Para emails, necesitamos una URL pública de la imagen
             console.log('Procesando imagen para email...');
-            const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileName));
-            const publicImageUrl = await uploadImageToPublicService(imageBuffer, fileName);
+            const imageBuffer = fs.readFileSync(path.join(__dirname, '../../../uploads', fileNames[0]));
+            const publicImageUrl = await uploadImageToPublicService(imageBuffer, fileNames[0]);
             console.log('URL pública para email:', publicImageUrl);
             htmlContent += `<img src="${publicImageUrl}" alt="Imagen de campaña" style="max-width: 100%; height: auto;" />`;
           }
@@ -385,7 +458,7 @@ module.exports = async (req, res) => {
             subject: msg.subject,
             to: msg.to,
             contentLength: content.length,
-            hasImage: !!imageUrl
+            hasImage: !!imageUrls.length
           });
         
           // Enviar email
@@ -407,9 +480,9 @@ module.exports = async (req, res) => {
         } else if (account.provider === 'whatsapp' && postType === 'whatsapp') {
           console.log('Preparando envío de mensaje de WhatsApp...');
           console.log('Número de teléfono:', phoneNumber);
-          console.log('Tipo de mensaje:', imageUrl ? 'image' : 'text');
-          if (imageUrl) {
-            console.log('URL de la imagen:', imageUrl);
+          console.log('Tipo de mensaje:', imageUrls.length > 0 ? 'image' : 'text');
+          if (imageUrls.length > 0) {
+            console.log('URL de la imagen:', imageUrls[0]);
           } else {
             console.log('Contenido del mensaje:', content);
           }
@@ -420,9 +493,9 @@ module.exports = async (req, res) => {
             console.log('Request payload:', {
               messaging_product: 'whatsapp',
               to: phoneNumber,
-              type: imageUrl ? 'image' : 'text',
-              [imageUrl ? 'image' : 'text']: imageUrl
-                ? { link: imageUrl }
+              type: imageUrls.length > 0 ? 'image' : 'text',
+              [imageUrls.length > 0 ? 'image' : 'text']: imageUrls.length > 0
+                ? { link: imageUrls[0] }
                 : { body: content },
             });
 
@@ -431,9 +504,9 @@ module.exports = async (req, res) => {
               {
                 messaging_product: 'whatsapp',
                 to: phoneNumber,
-                type: imageUrl ? 'image' : 'text',
-                [imageUrl ? 'image' : 'text']: imageUrl
-                  ? { link: imageUrl }
+                type: imageUrls.length > 0 ? 'image' : 'text',
+                [imageUrls.length > 0 ? 'image' : 'text']: imageUrls.length > 0
+                  ? { link: imageUrls[0] }
                   : { body: content },
               },
               {
